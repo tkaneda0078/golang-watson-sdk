@@ -23,14 +23,14 @@ type requestAudioProperties struct {
 	WatsonOptOut   bool
 }
 
-func NewRequest(u, p string) *requestAudioProperties {
+func NewRequest(username, password string) *requestAudioProperties {
 	return &requestAudioProperties{
 		URL:            API_URL,
 		Alternatives:   1,
 		EncodingModel:  DEFAULT_ENCODING,
 		UseWholeSample: true,
-		Username:       u,
-		Password:       p,
+		Username:       username,
+		Password:       password,
 	}
 }
 
@@ -53,9 +53,12 @@ type Alternatives struct {
 
 // Convert sets up the request to the speech-to-text service and returns an object with
 // the results.
-func (r *requestAudioProperties) ToText(reader io.Reader, audioType string) (*SpeechToText, error) {
+func (r *requestAudioProperties) ToText(reader io.Reader, audioFormat string) (*SpeechToText, error) {
 	if reader == nil {
 		return nil, fmt.Errorf("No reader supplied")
+	}
+	if audioFormat == "" {
+		return nil, fmt.Errorf("No audio format supplied, expected e.g. 'flac'")
 	}
 
 	url := fmt.Sprintf(AUDIO_RECOGNISE_SIGNATURE, r.URL, r.UseWholeSample, r.EncodingModel, r.Alternatives)
@@ -64,7 +67,7 @@ func (r *requestAudioProperties) ToText(reader io.Reader, audioType string) (*Sp
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Add("Content-Type", fmt.Sprintf("audio/%v", audioType))
+	request.Header.Add("Content-Type", fmt.Sprintf("audio/%v", audioFormat))
 	if r.WatsonOptOut {
 		request.Header.Add("X-Watson-Learning-Opt-Out", "true")
 	}
