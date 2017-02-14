@@ -15,7 +15,6 @@ var DEFAULT_ENCODING = "en-US_BroadbandModel"
 
 type requestAudioProperties struct {
 	Alternatives   int
-	fullURL        string
 	URL            string
 	Username       string
 	Password       string
