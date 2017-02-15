@@ -16,11 +16,12 @@ var DEFAULT_ENCODING = "en-US_BroadbandModel"
 type requestAudioProperties struct {
 	Alternatives   int
 	URL            string
-	Username       string
-	Password       string
+	username       string
+	password       string
 	EncodingModel  string
 	UseWholeSample bool
 	WatsonOptOut   bool
+	Timeout        time.Duration
 }
 
 func NewRequest(username, password string) *requestAudioProperties {
@@ -29,8 +30,8 @@ func NewRequest(username, password string) *requestAudioProperties {
 		Alternatives:   1,
 		EncodingModel:  DEFAULT_ENCODING,
 		UseWholeSample: true,
-		Username:       username,
-		Password:       password,
+		username:       username,
+		password:       password,
 	}
 }
 
@@ -49,6 +50,53 @@ type ResultText struct {
 type Alternatives struct {
 	Confidence float64 `json:"confidence"`
 	Transcript string  `json:"transcript"`
+}
+
+type SupportedFeatures struct {
+	CustomLanguageModel bool `json:"custom_language_model"`
+	SpeakerLabels       bool `json:"speaker_labels"`
+}
+
+type Model struct {
+	Name              string             `json:"name"`
+	Language          string             `json:"language"`
+	URL               string             `json:"url"`
+	Rate              int                `json:"rate"`
+	SupportedFeatures *SupportedFeatures `json:"supported_features"`
+	Description       string             `json:"description"`
+}
+type listModelsResponse struct {
+	Models []*Model `json:"models"`
+}
+
+func (r *requestAudioProperties) ListModels() ([]*Model, error) {
+	url := fmt.Sprintf("%s/v1/models", API_URL)
+
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	request.SetBasicAuth(r.username, r.password)
+
+	c := &http.Client{}
+	res, err := c.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	all, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return toModels(all)
+}
+
+func toModels(in []byte) ([]*Model, error) {
+	var l listModelsResponse
+	err := json.Unmarshal(in, &l)
+	return l.Models, err
 }
 
 // Convert sets up the request to the speech-to-text service and returns an object with
@@ -72,10 +120,11 @@ func (r *requestAudioProperties) ToText(reader io.Reader, audioFormat string) (*
 		request.Header.Add("X-Watson-Learning-Opt-Out", "true")
 	}
 
-	request.SetBasicAuth(r.Username, r.Password)
+	request.SetBasicAuth(r.username, r.password)
 
+	// Safe to overwrite as if Timeout is 0, it defaults to 60 seconds.
 	c := &http.Client{
-		Timeout: 5 * time.Minute,
+		Timeout: r.Timeout,
 	}
 	res, err := c.Do(request)
 	if err != nil {
@@ -87,10 +136,10 @@ func (r *requestAudioProperties) ToText(reader io.Reader, audioFormat string) (*
 		return nil, err
 	}
 
-	return convertToStruct(all)
+	return toSpeechToTextStruct(all)
 }
 
-func convertToStruct(b []byte) (*SpeechToText, error) {
+func toSpeechToTextStruct(b []byte) (*SpeechToText, error) {
 	var s SpeechToText
 	err := json.Unmarshal(b, &s)
 	return &s, err

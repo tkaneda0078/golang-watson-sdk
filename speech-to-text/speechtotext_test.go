@@ -6,11 +6,11 @@ import (
 
 func TestNewRequestHasRightInformation(t *testing.T) {
 	r := NewRequest("bob", "1234")
-	if r.Username != "bob" {
-		t.Fatalf("Expected username 'bob' got %v", r.Username)
+	if r.username != "bob" {
+		t.Fatalf("Expected username 'bob' got %v", r.username)
 	}
-	if r.Password != "1234" {
-		t.Fatalf("Expected password '1234' got %v", r.Password)
+	if r.password != "1234" {
+		t.Fatalf("Expected password '1234' got %v", r.password)
 	}
 	if r.URL != API_URL {
 		t.Fatalf("Expected URL %v got %v", API_URL, r.URL)
@@ -36,7 +36,7 @@ func TestGoodResponseConverts(t *testing.T) {
    ],
    "result_index": 0
 }`)
-	c, err := convertToStruct(resp)
+	c, err := toSpeechToTextStruct(resp)
 	if err != nil {
 		t.Fatalf("Unexpected error converting struct: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestErrorResponseConverts(t *testing.T) {
   "code": 404,
   "code_description": "No Such Resource"
 }`)
-	c, err := convertToStruct(resp)
+	c, err := toSpeechToTextStruct(resp)
 	if err != nil {
 		t.Fatalf("Unexpected error converting struct: %v", err)
 	}
@@ -76,5 +76,48 @@ func TestErrorResponseConverts(t *testing.T) {
 	}
 	if c.ErrCode != 404 {
 		t.Fatalf("Expected error 404 got %v", c.ErrCode)
+	}
+}
+
+func TestJSONToModels(t *testing.T) {
+	resp := []byte(`{
+  "models": [
+    {
+      "name": "fr-FR_BroadbandModel",
+      "language": "fr-FR",
+      "url": "https://stream.watsonplatform.net/speech-to-text/api/v1/models/fr-FR_BroadbandModel",
+      "rate": 16000,
+      "supported_features": {
+        "custom_language_model": false,
+        "speaker_labels": false
+      },
+      "description": "French broadband model."
+    },
+    {
+      "name": "en-US_NarrowbandModel",
+      "language": "en-US",
+      "url": "https://stream.watsonplatform.net/speech-to-text/api/v1/models/en-US_NarrowbandModel",
+      "rate": 8000,
+      "supported_features": {
+        "custom_language_model": true,
+        "speaker_labels": true
+      },
+      "description": "US English narrowband model."
+    }
+  ]
+}`)
+	models, err := toModels(resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(models) != 2 {
+		t.Fatalf("Expected 2 models, got %v", len(models))
+	}
+	if models[0].Name != "fr-FR_BroadbandModel" {
+		t.Fatalf("Expected first model named fr-FR_BroadbandModel got %v", models[0].Name)
+	}
+	if models[1].Name != "en-US_NarrowbandModel" {
+		t.Fatalf("Expected first model named en-US_NarrowbandModel got %v", models[1].Name)
 	}
 }
